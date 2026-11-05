@@ -1,0 +1,50 @@
+name: Sync Upstream
+
+on:
+  schedule:
+    # Runs automatically every day at 04:00 UTC
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: sync-upstream-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  workflows: write
+
+jobs:
+  sync:
+    name: Sync with upstream (Djihads80/Eglantine)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: nx2
+          fetch-depth: 0
+
+      - name: Sync upstream changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          echo "Adding upstream remote..."
+          git remote add upstream https://github.com/Djihads80/Eglantine.git
+          git fetch upstream nx2
+
+          echo "Checking sync status..."
+          if git merge-base --is-ancestor upstream/nx2 HEAD; then
+            echo "Branch nx2 is already up-to-date with upstream."
+          elif git merge-base --is-ancestor HEAD upstream/nx2; then
+            echo "Fast-forwarding to upstream..."
+            git merge --ff-only upstream/nx2
+            git push origin nx2
+            echo "Successfully fast-forwarded to upstream nx2."
+          else
+            echo "Branches have diverged, merging upstream changes..."
+            git merge --no-edit upstream/nx2
+            git push origin nx2
+            echo "Successfully merged upstream nx2."
+          fi
